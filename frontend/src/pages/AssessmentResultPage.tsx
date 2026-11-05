@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Check, ClipboardList, LoaderCircle, Save } from "lucide-react";
+import { ArrowLeft, Check, ClipboardList, Info, LoaderCircle, Save } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { getAssessmentAudioUrl } from "@/api/assessment";
 import { LoadingState } from "@/components/LoadingState";
@@ -50,10 +50,20 @@ function AnnotatedPassage({ text, alignment }: { text: string; alignment: Passag
   );
 }
 
-function StatValue({ label, value, note, accent = false }: { label: string; value: string | number; note?: string; accent?: boolean }) {
+function StatValue({ label, value, note, accent = false, help }: { label: string; value: string | number; note?: string; accent?: boolean; help?: string }) {
   return (
     <div className={`stat-value${accent ? " stat-value--accent" : ""}`}>
-      <span className="stat-label">{label}</span>
+      <span className="stat-label">
+        {label}
+        {help && (
+          <span className="stat-help">
+            <button type="button" className="stat-help-trigger" aria-label={`About ${label.toLocaleLowerCase()}`} aria-describedby="reading-level-help">
+              <Info size={14} aria-hidden="true" />
+            </button>
+            <span className="stat-help-tooltip" id="reading-level-help" role="tooltip">{help}</span>
+          </span>
+        )}
+      </span>
       <strong>{value}</strong>
       {note && <span className="stat-note">{note}</span>}
     </div>
@@ -154,7 +164,11 @@ export function AssessmentResultPage() {
         <StatValue label="Correct words" value={result.correct_words} />
         <StatValue label="Total miscues" value={result.miscues.length} />
         <StatValue label="Accuracy" value={formatAccuracy(result.accuracy)} accent />
-        <StatValue label="Reading level" value={result.reading_level || "Not provided"} />
+        <StatValue
+          label="Reading level"
+          value={result.reading_level || "Not provided"}
+          help="Accuracy is calculated as correct words ÷ total passage words × 100. Independent: 97% or higher; Instructional: 90% to below 97%; Frustration: below 90%. Omissions, substitutions, and repetitions count against correct words; insertions do not change the passage-word total."
+        />
       </section>
 
       <section className="audio-replay" aria-label="Recording playback">
