@@ -256,38 +256,6 @@ export function AssessmentResultPage() {
         </article>
       </section>
 
-      <section className="miscue-section" aria-labelledby="miscue-title">
-        <div className="miscue-heading">
-          <div>
-            <p className="eyebrow">WORD-BY-WORD REVIEW</p>
-            <h2 id="miscue-title">Miscue summary</h2>
-            <p>{assessment.review ? "Recalculated from the reviewed transcript. " : ""}{summaryText}</p>
-          </div>
-          <span className="miscue-total"><strong>{result.miscues.length}</strong><span>total<br />miscues</span></span>
-        </div>
-
-        {result.miscues.length > 0 ? (
-          <div className="miscue-table-wrap">
-            <table className="miscue-table">
-              <thead>
-                <tr><th scope="col">Expected</th><th scope="col">Actual</th><th scope="col">Type</th></tr>
-              </thead>
-              <tbody>
-                {result.miscues.map((miscue, index) => (
-                  <tr key={`${miscue.expected}-${miscue.actual}-${index}`}>
-                    <td>{miscue.expected || <span className="muted-word">-</span>}</td>
-                    <td>{miscue.actual || <span className="muted-word">-</span>}</td>
-                    <td><span className={`miscue-type miscue-type--${miscue.type.toLocaleLowerCase()}`}>{miscue.type}</span></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="no-miscues"><Check size={18} aria-hidden="true" /><span>No miscues were returned for this passage.</span></div>
-        )}
-      </section>
-
       <section className="teacher-review" aria-labelledby="teacher-review-title">
         <div className="review-fields">
           <label className="field-label">
