@@ -39,15 +39,15 @@ function AnnotatedPassage({ text, alignment }: { text: string; alignment: Passag
             )}
             <span
               className={`passage-word passage-word--${status}`}
-              aria-label={status === "substitution"
-                ? `${part}, read as ${alignment.substitutions.get(currentWordIndex) ?? ""}`
+              aria-label={status === "substitution" || status === "repetition"
+                ? `${part}, ${status === "repetition" ? "repeated" : "read"} as ${alignment.substitutions.get(currentWordIndex) ?? ""}`
                 : `${part}, ${statusLabel}`}
-              title={status === "substitution"
-                ? `Read as: ${alignment.substitutions.get(currentWordIndex) ?? ""}`
+              title={status === "substitution" || status === "repetition"
+                ? `${status === "repetition" ? "Repeated" : "Read as"}: ${alignment.substitutions.get(currentWordIndex) ?? ""}`
                 : statusLabel}
             >
-              {status === "substitution" && (
-                <span className="passage-substitution-actual" aria-hidden="true">
+              {(status === "substitution" || status === "repetition") && (
+                <span className={`passage-substitution-actual${status === "repetition" ? " passage-repetition-actual" : ""}`} aria-hidden="true">
                   {alignment.substitutions.get(currentWordIndex)}
                 </span>
               )}

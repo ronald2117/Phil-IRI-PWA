@@ -50,14 +50,36 @@ function findMatches(expected: string[], actual: string[]): Array<[number, numbe
   return matches;
 }
 
+function findRepeatedActualIndices(actual: string[], matches: Array<[number, number]>) {
+  const matchedIndices = new Set(matches.map(([, actualIndex]) => actualIndex));
+  const repeatedIndices = new Set<number>();
+  let start = 0;
+
+  while (start < actual.length) {
+    let end = start + 1;
+    while (end < actual.length && actual[end] === actual[start]) end += 1;
+    if (end - start > 1) {
+      const matchedInRun = Array.from({ length: end - start }, (_, offset) => start + offset)
+        .filter((index) => matchedIndices.has(index)).length;
+      const surplusIndices = Array.from({ length: end - start }, (_, offset) => start + offset)
+        .filter((index) => !matchedIndices.has(index));
+      const repeated = matchedInRun > 0 ? surplusIndices : surplusIndices.slice(1);
+      for (const index of repeated) repeatedIndices.add(index);
+    }
+    start = end;
+  }
+
+  return repeatedIndices;
+}
+
 export function alignPassage(expectedText: string, transcript: string): PassageAlignment {
   const expected = tokenize(expectedText);
   const actual = tokenize(transcript);
   const wordStatuses: PassageWordStatus[] = Array(expected.length).fill("correct");
   const substitutions = new Map<number, string>();
   const insertions = new Map<number, Array<{ word: string; status: "insertion" | "repetition" }>>();
-  const aligned: Array<{ expectedIndex?: number; actual: string; insertionPosition?: number; insertionIndex?: number }> = [];
   const matches = findMatches(expected, actual);
+  const repeatedActualIndices = findRepeatedActualIndices(actual, matches);
   let expectedStart = 0;
   let actualStart = 0;
 
@@ -68,42 +90,31 @@ export function alignPassage(expectedText: string, transcript: string): PassageA
 
     for (let index = 0; index < paired; index += 1) {
       const expectedIndex = expectedStart + index;
-      wordStatuses[expectedIndex] = "substitution";
-      substitutions.set(expectedIndex, actualGap[index]);
-      aligned.push({ expectedIndex, actual: actualGap[index] });
+      const actualWord = actualGap[index];
+      const isRepetition = repeatedActualIndices.has(actualStart + index);
+      wordStatuses[expectedIndex] = isRepetition ? "repetition" : "substitution";
+      substitutions.set(expectedIndex, actualWord);
     }
     for (let index = paired; index < expectedGap.length; index += 1) {
       const expectedIndex = expectedStart + index;
       wordStatuses[expectedIndex] = "omission";
-      aligned.push({ expectedIndex, actual: "" });
     }
-    for (const word of actualGap.slice(paired)) {
+    for (const [index, word] of actualGap.slice(paired).entries()) {
       const words = insertions.get(expectedEnd) ?? [];
-      const insertionIndex = words.length;
-      words.push({ word, status: "insertion" });
+      words.push({
+        word,
+        status: repeatedActualIndices.has(actualStart + paired + index) ? "repetition" : "insertion",
+      });
       insertions.set(expectedEnd, words);
-      aligned.push({ actual: word, insertionPosition: expectedEnd, insertionIndex });
     }
   }
 
   for (const [expectedIndex, actualIndex] of matches) {
     addGap(expectedIndex, actualIndex);
-    aligned.push({ expectedIndex, actual: actual[actualIndex] });
     expectedStart = expectedIndex + 1;
     actualStart = actualIndex + 1;
   }
   addGap(expected.length, actual.length);
-
-  let previousActual = "";
-  for (const pair of aligned) {
-    if (pair.actual && pair.actual === previousActual && pair.expectedIndex !== undefined) {
-      wordStatuses[pair.expectedIndex] = "repetition";
-    } else if (pair.actual && pair.actual === previousActual && pair.insertionPosition !== undefined && pair.insertionIndex !== undefined) {
-      const insertion = insertions.get(pair.insertionPosition)?.[pair.insertionIndex];
-      if (insertion) insertion.status = "repetition";
-    }
-    if (pair.actual) previousActual = pair.actual;
-  }
 
   return { wordStatuses, substitutions, insertions };
 }
@@ -118,11 +129,24 @@ export function analyzeMiscues(expectedText: string, transcript: string): Assess
   const expected = tokenize(expectedText);
   const actual = tokenize(transcript);
   const matches = findMatches(expected, actual);
+  const repeatedActualIndices = findRepeatedActualIndices(actual, matches);
 
   const miscues: Miscue[] = [];
-  const aligned: Array<{ expected: string; actual: string }> = [];
   let expectedStart = 0;
   let actualStart = 0;
+
+  function addAligned(expectedWord: string, actualWord: string, actualIndex?: number, type?: Miscue["type"]) {
+    const miscueType = actualIndex !== undefined && repeatedActualIndices.has(actualIndex)
+      ? "Repetition"
+      : type;
+    if (miscueType) {
+      miscues.push({
+        expected: miscueType === "Repetition" ? expectedWord || actualWord : expectedWord,
+        actual: actualWord,
+        type: miscueType,
+      });
+    }
+  }
 
   function addGap(expectedEnd: number, actualEnd: number) {
     const expectedGap = expected.slice(expectedStart, expectedEnd);
@@ -130,39 +154,23 @@ export function analyzeMiscues(expectedText: string, transcript: string): Assess
     const paired = Math.min(expectedGap.length, actualGap.length);
 
     for (let index = 0; index < paired; index += 1) {
-      miscues.push({ expected: expectedGap[index], actual: actualGap[index], type: "Substitution" });
-      aligned.push({ expected: expectedGap[index], actual: actualGap[index] });
+      addAligned(expectedGap[index], actualGap[index], actualStart + index, "Substitution");
     }
     for (const word of expectedGap.slice(paired)) {
-      miscues.push({ expected: word, actual: "", type: "Omission" });
-      aligned.push({ expected: word, actual: "" });
+      addAligned(word, "");
     }
-    for (const word of actualGap.slice(paired)) {
-      miscues.push({ expected: "", actual: word, type: "Insertion" });
-      aligned.push({ expected: "", actual: word });
+    for (const [index, word] of actualGap.slice(paired).entries()) {
+      addAligned("", word, actualStart + paired + index, "Insertion");
     }
   }
 
   for (const [expectedIndex, actualIndex] of matches) {
     addGap(expectedIndex, actualIndex);
-    aligned.push({ expected: expected[expectedIndex], actual: actual[actualIndex] });
+    addAligned(expected[expectedIndex], actual[actualIndex], actualIndex);
     expectedStart = expectedIndex + 1;
     actualStart = actualIndex + 1;
   }
   addGap(expected.length, actual.length);
-
-  let previousActual = "";
-  for (const pair of aligned) {
-    const currentActual = pair.actual;
-    if (currentActual && currentActual === previousActual) {
-      miscues.push({
-        expected: pair.expected || currentActual,
-        actual: currentActual,
-        type: "Repetition",
-      });
-    }
-    if (currentActual) previousActual = currentActual;
-  }
 
   const totalWords = expected.length;
   const penalized = miscues.filter((miscue) =>

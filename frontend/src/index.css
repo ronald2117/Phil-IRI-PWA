@@ -657,9 +657,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 
 .passage-word--substitution, .passage-word--omission { color: #b35240; text-decoration: underline wavy; text-decoration-thickness: 1px; text-underline-offset: 3px; }
 
-.passage-word--substitution { position: relative; display: inline-block; padding-top: 0.65em; }
+.passage-word--substitution, .passage-word--repetition { position: relative; display: inline-block; padding-top: 0.65em; }
 
 .passage-substitution-actual { position: absolute; top: 20%; left: 50%; color: #b35240; font-family: Arial, sans-serif; font-size: 0.62em; font-weight: 700; line-height: 1; text-decoration: none; transform: translateX(-50%); white-space: nowrap; }
+
+.passage-repetition-actual { color: #9b7628; }
 
 .passage-word--repetition { color: #9b7628; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 3px; }
 
