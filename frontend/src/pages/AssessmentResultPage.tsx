@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Check, ClipboardList, LoaderCircle, Save } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { getAssessmentAudioUrl } from "@/api/assessment";
@@ -6,7 +6,49 @@ import { LoadingState } from "@/components/LoadingState";
 import { getPassage } from "@/data/passages";
 import { useAssessment, useSaveAssessmentReview } from "@/hooks/useAssessments";
 import { formatAccuracy, formatDate } from "@/lib/format";
+import { alignPassage, type PassageAlignment, type PassageWordStatus } from "@/lib/miscue";
 import { MISCUE_TYPES } from "@/types/assessment";
+
+const PASSAGE_WORD_PATTERN = /^[\p{L}\p{N}\p{Pc}]+$/u;
+
+function AnnotatedPassage({ text, alignment }: { text: string; alignment: PassageAlignment }) {
+  let wordIndex = 0;
+  const parts = text.normalize("NFC").split(/([\p{L}\p{N}\p{Pc}]+)/gu);
+
+  function renderInsertion(word: string, status: "insertion" | "repetition", key: string) {
+    const label = status === "repetition" ? "Repeated word" : "Inserted word";
+    return (
+      <span className={`passage-insertion passage-insertion--${status}`} aria-label={`${label}: ${word}`} key={key}>
+        ^{word}
+      </span>
+    );
+  }
+
+  return (
+    <p className="reading-text annotated-passage" lang="fil">
+      {parts.map((part, index) => {
+        if (!PASSAGE_WORD_PATTERN.test(part)) return <Fragment key={index}>{part}</Fragment>;
+
+        const currentWordIndex = wordIndex++;
+        const status: PassageWordStatus = alignment.wordStatuses[currentWordIndex] ?? "correct";
+        const statusLabel = status === "correct" ? "Correct" : status[0].toLocaleUpperCase() + status.slice(1);
+        return (
+          <Fragment key={index}>
+            {alignment.insertions.get(currentWordIndex)?.map(({ word, status }, insertionIndex) =>
+              renderInsertion(word, status, `${currentWordIndex}-${insertionIndex}`),
+            )}
+            <span className={`passage-word passage-word--${status}`} aria-label={`${part}, ${statusLabel}`} title={statusLabel}>
+              {part}
+            </span>
+          </Fragment>
+        );
+      })}
+      {alignment.insertions.get(wordIndex)?.map(({ word, status }, insertionIndex) =>
+        renderInsertion(word, status, `end-${insertionIndex}`),
+      )}
+    </p>
+  );
+}
 
 function StatValue({ label, value, note, accent = false }: { label: string; value: string | number; note?: string; accent?: boolean }) {
   return (
@@ -46,6 +88,11 @@ export function AssessmentResultPage() {
     }
     return counts;
   }, [assessment?.result.miscues]);
+  const passageAlignment = useMemo(() => {
+    if (!assessment) return alignPassage("", "");
+    const sourceText = assessment.result.expected_text || getPassage(assessment.passage_id)?.text || "Original passage text is not available.";
+    return alignPassage(sourceText, assessment.result.transcript);
+  }, [assessment?.passage_id, assessment?.result.expected_text, assessment?.result.transcript]);
 
   if (isLoading && !assessment) return <LoadingState label="Loading reading results" />;
 
@@ -138,7 +185,13 @@ export function AssessmentResultPage() {
             </div>
             <span className="small-label">{passage?.title ?? "Phil-IRI passage"}</span>
           </div>
-          <p className="reading-text" lang="fil">{expectedText}</p>
+          <div className="passage-legend" aria-label="Passage marking legend">
+            <span><i className="passage-legend-swatch passage-legend-swatch--correct" aria-hidden="true" />Correct</span>
+            <span><i className="passage-legend-swatch passage-legend-swatch--miscue" aria-hidden="true" />Miscue</span>
+            <span><i className="passage-legend-swatch passage-legend-swatch--repetition" aria-hidden="true" />Repetition</span>
+            <span><b>^word</b> Inserted or repeated word</span>
+          </div>
+          <AnnotatedPassage text={expectedText} alignment={passageAlignment} />
         </article>
 
         <article className="reading-text-column transcript-column">
