@@ -11,7 +11,7 @@ export function BrandMark({ compact = false }: { compact?: boolean }) {
         </svg>
       </span>
       <span className="brand-copy">
-        <span className="brand-name">BasaBantay</span>
+        <span className="brand-name">TAPi</span>
         {!compact && <span className="brand-caption">Phil-IRI reading lab</span>}
       </span>
     </div>
