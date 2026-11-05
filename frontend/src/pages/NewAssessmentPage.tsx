@@ -10,6 +10,7 @@ const GRADES = ["Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6"
 export function NewAssessmentPage() {
   const navigate = useNavigate();
   const createAssessment = useCreateAssessment();
+  const [step, setStep] = useState<"details" | "recording">("details");
   const [studentName, setStudentName] = useState("");
   const [grade, setGrade] = useState("Grade 3");
   const [section, setSection] = useState("");
@@ -18,6 +19,17 @@ export function NewAssessmentPage() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [formError, setFormError] = useState("");
   const passage = getPassage(passageId);
+
+  function handleContinue(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setFormError("");
+    if (!studentName.trim() || !section.trim()) {
+      setFormError("Enter the student's name and section before continuing.");
+      return;
+    }
+    setStep("recording");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -47,13 +59,15 @@ export function NewAssessmentPage() {
     <div className="page page-new-assessment">
       <Link to="/" className="back-link"><ArrowLeft size={16} aria-hidden="true" /> Dashboard</Link>
       <header className="page-heading page-heading--form">
-        <p className="eyebrow">A NEW READING, A NEW PICTURE</p>
-        <h1>New assessment</h1>
-        <p>Set up the learner and passage, then record or upload the reading aloud.</p>
+        <p className="eyebrow">{step === "details" ? "STEP 01 / LEARNER DETAILS" : "STEP 02 / VOICE SAMPLE"}</p>
+        <h1>{step === "details" ? "Who’s reading today?" : "Ready to read?"}</h1>
+        <p>{step === "details"
+          ? "Enter the learner's details and choose a passage."
+          : "Read the selected passage aloud, then submit the recording for assessment."}</p>
       </header>
 
-      <form className="assessment-form" onSubmit={handleSubmit}>
-        <div className="assessment-form-main">
+      {step === "details" ? (
+        <form className="assessment-form assessment-form--details" onSubmit={handleContinue}>
           <section className="form-section" aria-labelledby="student-details-title">
             <div className="form-section-heading">
               <span className="step-number step-number--light">01</span>
@@ -118,9 +132,28 @@ export function NewAssessmentPage() {
               <span className="passage-word-count">{passage.text.trim().split(/\s+/).length} words</span>
             </section>
           )}
-        </div>
 
-        <div className="assessment-form-aside">
+          {formError && <div className="form-alert" role="alert"><span className="form-alert-mark">!</span><p>{formError}</p></div>}
+          <div className="step-actions">
+            <button className="button button-primary" type="submit">Continue to recording <ArrowRight size={16} aria-hidden="true" /></button>
+          </div>
+        </form>
+      ) : (
+        <form className="assessment-recording-form" onSubmit={handleSubmit}>
+          {passage && (
+            <section className="recording-passage" aria-labelledby="recording-passage-title">
+              <div className="passage-preview-heading">
+                <div>
+                  <p className="eyebrow">READ THIS PASSAGE ALOUD</p>
+                  <h2 id="recording-passage-title">{passage.title}</h2>
+                </div>
+                <span className="passage-language">FILIPINO / {passage.text.trim().split(/\s+/).length} WORDS</span>
+              </div>
+              <p className="passage-description">{passage.description}</p>
+              <p className="passage-text" lang="fil">{passage.text}</p>
+            </section>
+          )}
+
           <RecordingPanel onRecordingReady={setAudio} />
 
           {(formError || createAssessment.isError) && (
@@ -143,14 +176,24 @@ export function NewAssessmentPage() {
             </div>
           )}
 
-          <div className="submit-area">
-            <div className="submit-note"><FileAudio size={17} aria-hidden="true" /><span>Audio is sent to the configured assessment service for analysis.</span></div>
-            <button className="button button-primary submit-button" type="submit" disabled={createAssessment.isPending}>
-              {createAssessment.isPending ? <><LoaderCircle size={17} className="spin" /> Submitting</> : <><Check size={17} /> Submit assessment <ArrowRight size={16} /></>}
+          <div className="recording-form-actions">
+            <button
+              className="button button-secondary"
+              type="button"
+              onClick={() => { setFormError(""); setStep("details"); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+              disabled={createAssessment.isPending}
+            >
+              <ArrowLeft size={16} aria-hidden="true" /> Back to learner details
             </button>
+            <div className="recording-submit">
+              <div className="submit-note"><FileAudio size={17} aria-hidden="true" /><span>Audio is sent to the configured assessment service for analysis.</span></div>
+              <button className="button button-primary submit-button" type="submit" disabled={createAssessment.isPending}>
+                {createAssessment.isPending ? <><LoaderCircle size={17} className="spin" /> Submitting</> : <><Check size={17} aria-hidden="true" /> Submit assessment <ArrowRight size={16} aria-hidden="true" /></>}
+              </button>
+            </div>
           </div>
-        </div>
-      </form>
+        </form>
+      )}
       <p className="assessment-footnote">For the clearest results, record in a quiet space and let the learner read independently.</p>
     </div>
   );

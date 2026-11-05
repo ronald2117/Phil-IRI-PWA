@@ -144,11 +144,23 @@ export function AssessmentResultPage() {
         <article className="reading-text-column transcript-column">
           <div className="content-section-heading">
             <div>
-              <p className="eyebrow">{assessment.review ? "TEACHER-CORRECTED ANALYSIS" : "RETURNED BY THE ASSESSMENT SERVICE"}</p>
-              <h2>{assessment.review ? "Reviewed transcript" : "Transcript"}</h2>
+              <p className="eyebrow">TRANSCRIPT USED FOR RESULTS</p>
+              <h2>{assessment.review ? "Teacher-corrected transcript" : "Transcript"}</h2>
             </div>
           </div>
-          <p className="reading-text" lang="fil">{result.transcript || "No transcript was returned for this reading."}</p>
+          <span id="review-transcript-help" className="review-editor-help">Edit the recognized words, then save to recalculate the miscues.</span>
+          <textarea
+            id="review-transcript"
+            className="text-input review-transcript-editor review-textarea"
+            aria-describedby="review-transcript-help"
+            aria-label="Teacher-corrected transcript"
+            value={transcript}
+            onChange={(event) => { setTranscript(event.target.value); setSavedMessage(""); }}
+            placeholder="Review or correct the transcript..."
+            rows={5}
+            maxLength={12000}
+            disabled={saveReview.isPending}
+          />
         </article>
       </section>
 
@@ -185,28 +197,7 @@ export function AssessmentResultPage() {
       </section>
 
       <section className="teacher-review" aria-labelledby="teacher-review-title">
-        <div className="teacher-review-heading">
-          <span className="review-icon"><ClipboardList size={19} aria-hidden="true" /></span>
-          <div>
-            <p className="eyebrow">TEACHER REVIEW</p>
-            <h2 id="teacher-review-title">Make it your record</h2>
-            <p>Correct the transcript and add a note for your next lesson.</p>
-          </div>
-        </div>
-
         <div className="review-fields">
-          <label className="field-label">
-            Reviewed transcript
-            <textarea
-              className="text-input review-textarea"
-              value={transcript}
-              onChange={(event) => { setTranscript(event.target.value); setSavedMessage(""); }}
-              placeholder="Review or correct the transcript..."
-              rows={5}
-              maxLength={12000}
-              disabled={saveReview.isPending}
-            />
-          </label>
           <label className="field-label">
             Teacher notes <span className="optional-label">OPTIONAL</span>
             <textarea

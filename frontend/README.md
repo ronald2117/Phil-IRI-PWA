@@ -15,7 +15,8 @@ The API defaults to `http://localhost:8000`. Copy `.env.example` to `.env.local`
 
 - `POST /assess` accepts `multipart/form-data` fields `audio_file`, `student_name`, `grade`, `section`, and `passage_id`.
 - `GET /assessments` and `GET /assessments/{id}` are used when available. If the list or detail routes are not implemented, assessments created in this browser remain available from local storage.
-- `PATCH /assessments/{id}/review` is sent as a best-effort sync for teacher edits. Review corrections are saved on this device first, so they remain available if the optional route is unavailable.
+- `GET /assessments/{id}/audio` streams the saved recording for playback on the result page.
+- `PATCH /assessments/{id}/review` saves teacher corrections and recalculates the miscues and score. Corrections are saved on this device first, so they remain available if the server is unavailable.
 
 The assessment service should return the transcript, expected passage text, word counts, miscues, accuracy, and reading level. Result parsing also accepts common `result`, `analysis`, or `data` response wrappers.
 

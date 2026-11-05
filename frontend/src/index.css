@@ -425,6 +425,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 
 .assessment-form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(310px, 0.8fr); align-items: start; gap: clamp(25px, 4vw, 50px); }
 
+.assessment-form--details { display: block; max-width: 860px; }
+
 .assessment-form-main { min-width: 0; }
 
 .form-section { padding: 3px 0 30px; border-bottom: 1px solid var(--line); }
@@ -468,6 +470,26 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .passage-text { margin: 18px 0 0; color: #374b3d; font-family: Georgia, "Times New Roman", serif; font-size: 15px; line-height: 1.85; }
 
 .passage-word-count { display: block; margin-top: 14px; color: #8b9587; font-size: 10px; }
+
+.step-actions { display: flex; justify-content: flex-end; margin-top: 20px; }
+
+.assessment-recording-form { display: grid; max-width: 900px; gap: 20px; }
+
+.recording-passage { padding: 23px 25px 24px; border-left: 3px solid #b3c97c; background: #edeee2; }
+
+.recording-passage h2 { margin-top: 5px; font-size: 24px; }
+
+.recording-passage .passage-text { margin-top: 18px; }
+
+.recording-form-actions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 1.2fr); align-items: start; gap: 22px; }
+
+.recording-form-actions > .button { justify-self: start; }
+
+.recording-submit { display: grid; gap: 13px; }
+
+.button-secondary { border: 1px solid #d6ddd1; color: #4a6651; background: #fffef9; }
+
+.button-secondary:hover:not(:disabled) { background: #f0f2e9; }
 
 .assessment-form-aside { display: grid; gap: 14px; }
 
@@ -655,7 +677,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 
 .review-fields { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 17px; margin-top: 20px; }
 
-.review-textarea { min-height: 128px; line-height: 1.65; resize: vertical; }
+.review-transcript-editor { overflow-y: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+.review-editor-help { color: #879287; font-size: 10px; font-weight: 450; line-height: 1.5; }
+
+.review-textarea { min-height: 220px; line-height: 1.65; resize: vertical; }
 
 .review-notes { min-height: 128px; }
 
@@ -805,6 +831,12 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .history-results { margin-top: 24px; }
   .history-list-heading h2 { font-size: 20px; }
   .fields-grid { grid-template-columns: 1fr 1fr; gap: 15px 10px; }
+  .assessment-form--details { display: block; }
+  .recording-passage { padding: 19px 18px; }
+  .recording-form-actions { grid-template-columns: 1fr; }
+  .recording-form-actions > .button { justify-self: stretch; }
+  .recording-submit { order: -1; }
+  .step-actions .button { width: 100%; }
   .field-label { font-size: 11px; }
   .text-input { min-height: 44px; padding: 9px 10px; font-size: 12px; }
   .form-section-heading h2 { font-size: 21px; }

@@ -12,7 +12,7 @@ backend/
 ├── app/
 │   ├── main.py                  # FastAPI factory + CORS + logging
 │   ├── api/
-│   │   ├── assessment.py        # POST /assess, GET /assessments, PATCH /assessments/{id}/review
+│   │   ├── assessment.py        # Assessment submission, playback, and review routes
 │   │   └── utils.py             # GET /health, GET /passages
 │   ├── models/
 │   │   ├── assessment.py        # Pydantic domain models
@@ -74,7 +74,11 @@ The API will be available at **http://localhost:8000**
 | `POST` | `/assess` | Submit recording for assessment |
 | `GET` | `/assessments` | List all assessments |
 | `GET` | `/assessments/{id}` | Get a single assessment |
-| `PATCH` | `/assessments/{id}/review` | Save teacher corrections |
+| `GET` | `/assessments/{id}/audio` | Replay the saved recording |
+| `PATCH` | `/assessments/{id}/review` | Save corrections and recalculate miscues |
+
+The review endpoint reruns the word-level analysis against the corrected transcript
+and persists the updated score, miscues, reading level, and teacher notes.
 
 ### POST /assess — form fields
 
