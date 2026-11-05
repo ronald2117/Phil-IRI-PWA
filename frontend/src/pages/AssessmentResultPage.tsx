@@ -1,0 +1,209 @@
+import { useEffect, useMemo, useState } from "react";
+import { ArrowLeft, Check, ClipboardList, LoaderCircle, Save } from "lucide-react";
+import { Link, useParams } from "react-router-dom";
+import { LoadingState } from "@/components/LoadingState";
+import { getPassage } from "@/data/passages";
+import { useAssessment, useSaveAssessmentReview } from "@/hooks/useAssessments";
+import { formatAccuracy, formatDate } from "@/lib/format";
+import { MISCUE_TYPES } from "@/types/assessment";
+
+function StatValue({ label, value, note, accent = false }: { label: string; value: string | number; note?: string; accent?: boolean }) {
+  return (
+    <div className={`stat-value${accent ? " stat-value--accent" : ""}`}>
+      <span className="stat-label">{label}</span>
+      <strong>{value}</strong>
+      {note && <span className="stat-note">{note}</span>}
+    </div>
+  );
+}
+
+export function AssessmentResultPage() {
+  const { id = "" } = useParams();
+  const { data: assessment, isLoading, error } = useAssessment(id);
+  const saveReview = useSaveAssessmentReview();
+  const [transcript, setTranscript] = useState("");
+  const [notes, setNotes] = useState("");
+  const [savedMessage, setSavedMessage] = useState("");
+
+  useEffect(() => {
+    if (!assessment) return;
+    setTranscript(assessment.review?.transcript ?? assessment.result.transcript);
+    setNotes(assessment.review?.notes ?? "");
+    setSavedMessage(assessment.review ? `Last saved ${formatDate(assessment.review.updated_at)}` : "");
+  }, [assessment?.id, assessment?.review?.updated_at, assessment?.review?.transcript, assessment?.review?.notes, assessment?.result.transcript]);
+
+  const savedTranscript = assessment?.review?.transcript ?? assessment?.result.transcript ?? "";
+  const savedNotes = assessment?.review?.notes ?? "";
+  const isDirty = transcript !== savedTranscript || notes !== savedNotes;
+  const passage = assessment ? getPassage(assessment.passage_id) : undefined;
+  const miscuesByType = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const miscue of assessment?.result.miscues ?? []) {
+      counts.set(miscue.type, (counts.get(miscue.type) ?? 0) + 1);
+    }
+    return counts;
+  }, [assessment?.result.miscues]);
+
+  if (isLoading && !assessment) return <LoadingState label="Loading reading results" />;
+
+  if (!assessment) {
+    return (
+      <div className="not-found-state">
+        <span className="not-found-icon"><ClipboardList size={23} aria-hidden="true" /></span>
+        <p className="eyebrow">ASSESSMENT NOT AVAILABLE</p>
+        <h1>We couldn't find this reading.</h1>
+        <p>{error instanceof Error ? error.message : "The record may have been removed or is not available on this device."}</p>
+        <Link className="button button-primary" to="/assessments"><ArrowLeft size={16} /> Back to history</Link>
+      </div>
+    );
+  }
+
+  const { result } = assessment;
+  const expectedText = result.expected_text || passage?.text || "Original passage text is not available.";
+  const summaryText = result.miscues.length === 0
+    ? "No miscues were recorded."
+    : MISCUE_TYPES
+        .filter((type) => (miscuesByType.get(type) ?? 0) > 0)
+        .map((type) => `${miscuesByType.get(type)} ${type.toLocaleLowerCase()}${miscuesByType.get(type) === 1 ? "" : "s"}`)
+        .join(" / ");
+
+  function handleSave() {
+    if (!assessment || !isDirty) return;
+    setSavedMessage("");
+    saveReview.mutate({
+      id: assessment.id,
+      review: {
+        transcript,
+        notes: notes.trim(),
+        updated_at: new Date().toISOString(),
+      },
+    }, {
+      onSuccess: () => setSavedMessage("Corrections saved on this device."),
+    });
+  }
+
+  return (
+    <div className="page page-result">
+      <Link to="/assessments" className="back-link"><ArrowLeft size={16} aria-hidden="true" /> Assessment history</Link>
+
+      <header className="result-heading">
+        <div>
+          <p className="eyebrow">READING ASSESSMENT / {formatDate(assessment.created_at)}</p>
+          <h1>{assessment.student_name}</h1>
+          <p className="result-subtitle">{assessment.grade} <span>/</span> {assessment.section || "No section"} <span>/</span> {passage?.title ?? "Reading passage"}</p>
+        </div>
+        <span className="result-status"><Check size={15} aria-hidden="true" /> Analysis complete</span>
+      </header>
+
+      <section className="result-stats" aria-label="Reading summary">
+        <StatValue label="Total words" value={result.total_words} />
+        <StatValue label="Correct words" value={result.correct_words} />
+        <StatValue label="Total miscues" value={result.miscues.length} />
+        <StatValue label="Accuracy" value={formatAccuracy(result.accuracy)} accent />
+        <StatValue label="Reading level" value={result.reading_level || "Not provided"} />
+      </section>
+
+      <section className="text-comparison" aria-label="Original passage and transcript">
+        <article className="reading-text-column">
+          <div className="content-section-heading">
+            <div>
+              <p className="eyebrow">SOURCE TEXT</p>
+              <h2>Original passage</h2>
+            </div>
+            <span className="small-label">{passage?.title ?? "Phil-IRI passage"}</span>
+          </div>
+          <p className="reading-text" lang="fil">{expectedText}</p>
+        </article>
+
+        <article className="reading-text-column transcript-column">
+          <div className="content-section-heading">
+            <div>
+              <p className="eyebrow">RETURNED BY THE ASSESSMENT SERVICE</p>
+              <h2>Transcript</h2>
+            </div>
+          </div>
+          <p className="reading-text" lang="fil">{result.transcript || "No transcript was returned for this reading."}</p>
+        </article>
+      </section>
+
+      <section className="miscue-section" aria-labelledby="miscue-title">
+        <div className="miscue-heading">
+          <div>
+            <p className="eyebrow">WORD-BY-WORD REVIEW</p>
+            <h2 id="miscue-title">Miscue summary</h2>
+            <p>{summaryText}</p>
+          </div>
+          <span className="miscue-total"><strong>{result.miscues.length}</strong><span>total<br />miscues</span></span>
+        </div>
+
+        {result.miscues.length > 0 ? (
+          <div className="miscue-table-wrap">
+            <table className="miscue-table">
+              <thead>
+                <tr><th scope="col">Expected</th><th scope="col">Actual</th><th scope="col">Type</th></tr>
+              </thead>
+              <tbody>
+                {result.miscues.map((miscue, index) => (
+                  <tr key={`${miscue.expected}-${miscue.actual}-${index}`}>
+                    <td>{miscue.expected || <span className="muted-word">-</span>}</td>
+                    <td>{miscue.actual || <span className="muted-word">-</span>}</td>
+                    <td><span className={`miscue-type miscue-type--${miscue.type.toLocaleLowerCase()}`}>{miscue.type}</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="no-miscues"><Check size={18} aria-hidden="true" /><span>No miscues were returned for this passage.</span></div>
+        )}
+      </section>
+
+      <section className="teacher-review" aria-labelledby="teacher-review-title">
+        <div className="teacher-review-heading">
+          <span className="review-icon"><ClipboardList size={19} aria-hidden="true" /></span>
+          <div>
+            <p className="eyebrow">TEACHER REVIEW</p>
+            <h2 id="teacher-review-title">Make it your record</h2>
+            <p>Correct the transcript and add a note for your next lesson.</p>
+          </div>
+        </div>
+
+        <div className="review-fields">
+          <label className="field-label">
+            Reviewed transcript
+            <textarea
+              className="text-input review-textarea"
+              value={transcript}
+              onChange={(event) => { setTranscript(event.target.value); setSavedMessage(""); }}
+              placeholder="Review or correct the transcript..."
+              rows={5}
+              maxLength={12000}
+            />
+          </label>
+          <label className="field-label">
+            Teacher notes <span className="optional-label">OPTIONAL</span>
+            <textarea
+              className="text-input review-textarea review-notes"
+              value={notes}
+              onChange={(event) => { setNotes(event.target.value); setSavedMessage(""); }}
+              placeholder="Add a short observation or a next step for this reader..."
+              rows={4}
+              maxLength={2000}
+            />
+          </label>
+        </div>
+
+        <div className="review-footer">
+          <div className="review-feedback" aria-live="polite">
+            {saveReview.isPending ? <><LoaderCircle size={15} className="spin" /> Saving corrections...</> : savedMessage && <><Check size={15} /> {savedMessage}</>}
+            {saveReview.isError && <span className="field-error">{saveReview.error.message}</span>}
+          </div>
+          <button type="button" className="button button-primary" onClick={handleSave} disabled={!isDirty || saveReview.isPending}>
+            {saveReview.isPending ? <LoaderCircle size={16} className="spin" /> : <Save size={16} aria-hidden="true" />}
+            Save corrections
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
