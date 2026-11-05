@@ -64,16 +64,17 @@ function AnnotatedPassage({ text, alignment }: { text: string; alignment: Passag
 }
 
 function StatValue({ label, value, note, accent = false, help }: { label: string; value: string | number; note?: string; accent?: boolean; help?: string }) {
+  const helpId = `${label.toLocaleLowerCase().replace(/[^a-z0-9]+/g, "-")}-help`;
   return (
     <div className={`stat-value${accent ? " stat-value--accent" : ""}`}>
       <span className="stat-label">
         {label}
         {help && (
           <span className="stat-help">
-            <button type="button" className="stat-help-trigger" aria-label={`About ${label.toLocaleLowerCase()}`} aria-describedby="reading-level-help">
+            <button type="button" className="stat-help-trigger" aria-label={`About ${label.toLocaleLowerCase()}`} aria-describedby={helpId}>
               <Info size={14} aria-hidden="true" />
             </button>
-            <span className="stat-help-tooltip" id="reading-level-help" role="tooltip">{help}</span>
+            <span className="stat-help-tooltip" id={helpId} role="tooltip">{help}</span>
           </span>
         )}
       </span>
@@ -91,10 +92,12 @@ export function AssessmentResultPage() {
   const [notes, setNotes] = useState("");
   const [savedMessage, setSavedMessage] = useState("");
   const [audioUnavailable, setAudioUnavailable] = useState(false);
+  const [audioDuration, setAudioDuration] = useState<number | null>(null);
 
   useEffect(() => {
     if (!assessment) return;
     setAudioUnavailable(false);
+    setAudioDuration(null);
     setTranscript(assessment.review?.transcript ?? assessment.result.transcript);
     setNotes(assessment.review?.notes ?? "");
     setSavedMessage(assessment.review ? `Last saved ${formatDate(assessment.review.updated_at)}` : "");
@@ -178,6 +181,11 @@ export function AssessmentResultPage() {
         <StatValue label="Total miscues" value={result.miscues.length} />
         <StatValue label="Accuracy" value={formatAccuracy(result.accuracy)} accent />
         <StatValue
+          label="Correct words/min"
+          value={audioDuration ? `${Math.round((result.correct_words / audioDuration) * 60)} WPM` : "—"}
+          help="Correct words per minute is calculated as correct words ÷ recording duration in minutes. It uses the full recording duration, including pauses."
+        />
+        <StatValue
           label="Reading level"
           value={result.reading_level || "Not provided"}
           help="Accuracy is calculated as correct words ÷ total passage words × 100. Independent: 97% or higher; Instructional: 90% to below 97%; Frustration: below 90%. Omissions, substitutions, and repetitions count against correct words; insertions do not change the passage-word total."
@@ -196,6 +204,10 @@ export function AssessmentResultPage() {
             controls
             preload="metadata"
             src={getAssessmentAudioUrl(assessment.id)}
+            onLoadedMetadata={(event) => {
+              const duration = event.currentTarget.duration;
+              setAudioDuration(Number.isFinite(duration) && duration > 0 ? duration : null);
+            }}
             onError={() => setAudioUnavailable(true)}
           >
             Your browser does not support audio playback.
