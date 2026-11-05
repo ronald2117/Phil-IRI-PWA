@@ -655,7 +655,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 
 .passage-word--correct { color: #3f7650; }
 
-.passage-word--substitution, .passage-word--omission { color: #b35240; text-decoration: underline wavy; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.passage-word--substitution { color: #b35240; text-decoration: underline wavy; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+
+.passage-word--omission { display: inline-block; padding: 0 0.2em; border: 1px solid #b35240; border-radius: 999px; color: #b35240; line-height: 1.45; }
 
 .passage-word--substitution, .passage-word--repetition { position: relative; display: inline-block; padding-top: 0.65em; }
 
