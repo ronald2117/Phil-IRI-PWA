@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { AudioLines, Mic, RotateCcw, Square } from "lucide-react";
+import { AudioLines, Mic, RotateCcw, Square, Upload } from "lucide-react";
 
 interface RecordingPanelProps {
   onRecordingReady: (audio: Blob | null) => void;
@@ -16,6 +16,8 @@ export function RecordingPanel({ onRecordingReady }: RecordingPanelProps) {
   const [audioUrl, setAudioUrl] = useState("");
   const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState("");
+  const [uploadedFileName, setUploadedFileName] = useState("");
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
@@ -45,9 +47,42 @@ export function RecordingPanel({ onRecordingReady }: RecordingPanelProps) {
     if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
     audioUrlRef.current = "";
     setAudioUrl("");
+    setUploadedFileName("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
     setElapsed(0);
     setError("");
     onRecordingReady(null);
+  }
+
+  function handleAudioFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.currentTarget.files?.[0];
+    if (!file) return;
+
+    if (!file.name.toLowerCase().endsWith(".wav")) {
+      setError("Choose a WAV audio file (.wav).");
+      event.currentTarget.value = "";
+      return;
+    }
+    if (file.size === 0) {
+      setError("The selected WAV file is empty. Choose another file.");
+      event.currentTarget.value = "";
+      return;
+    }
+    if (file.size > 50 * 1024 * 1024) {
+      setError("The WAV file exceeds the 50 MB limit. Choose a smaller file.");
+      event.currentTarget.value = "";
+      return;
+    }
+
+    if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
+    const nextUrl = URL.createObjectURL(file);
+    audioUrlRef.current = nextUrl;
+    setAudioUrl(nextUrl);
+    setUploadedFileName(file.name);
+    setElapsed(0);
+    setError("");
+    onRecordingReady(file);
+    event.currentTarget.value = "";
   }
 
   async function startRecording() {
@@ -151,8 +186,8 @@ export function RecordingPanel({ onRecordingReady }: RecordingPanelProps) {
         ) : audioUrl ? (
           <>
             <span className="recording-ready-icon"><AudioLines size={25} aria-hidden="true" /></span>
-            <span className="recording-timer">{formatDuration(elapsed)} recorded</span>
-            <p className="recording-status">Ready to play back</p>
+            <span className="recording-timer">{uploadedFileName ? "WAV file ready" : `${formatDuration(elapsed)} recorded`}</span>
+            <p className="recording-status">{uploadedFileName || "Ready to play back"}</p>
           </>
         ) : (
           <>
@@ -176,9 +211,13 @@ export function RecordingPanel({ onRecordingReady }: RecordingPanelProps) {
                 : "The recording could not be played. Try recording again.");
             }}
           />
-          <button type="button" className="text-button" onClick={() => { clearRecording(); void startRecording(); }}>
-            <RotateCcw size={15} aria-hidden="true" /> Record again
-          </button>
+          {uploadedFileName ? (
+            <button type="button" className="text-button" onClick={clearRecording}>Remove WAV file</button>
+          ) : (
+            <button type="button" className="text-button" onClick={() => { clearRecording(); void startRecording(); }}>
+              <RotateCcw size={15} aria-hidden="true" /> Record again
+            </button>
+          )}
         </div>
       )}
 
@@ -191,6 +230,23 @@ export function RecordingPanel({ onRecordingReady }: RecordingPanelProps) {
           <Mic size={17} aria-hidden="true" /> Start recording
         </button>
       ) : null}
+
+      {!isRecording && (
+        <div className="audio-upload">
+          <p className="recording-upload-hint">Or upload a WAV file (up to 50 MB).</p>
+          <label className="record-button record-button--upload">
+            <Upload size={16} aria-hidden="true" /> Choose WAV file
+            <input
+              ref={fileInputRef}
+              className="audio-upload-input"
+              type="file"
+              accept=".wav,audio/wav,audio/x-wav"
+              aria-label="Choose a WAV audio file"
+              onChange={handleAudioFileChange}
+            />
+          </label>
+        </div>
+      )}
 
       {error && <p className="field-error recording-error" role="alert">{error}</p>}
       <p className="recording-hint">Keep the device close and reduce background noise.</p>

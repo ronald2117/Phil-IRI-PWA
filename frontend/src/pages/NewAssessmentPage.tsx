@@ -24,7 +24,7 @@ export function NewAssessmentPage() {
     setFormError("");
 
     if (!audio) {
-      setFormError("Record a reading sample before submitting the assessment.");
+      setFormError("Record or upload a reading sample before submitting the assessment.");
       return;
     }
 
@@ -49,7 +49,7 @@ export function NewAssessmentPage() {
       <header className="page-heading page-heading--form">
         <p className="eyebrow">A NEW READING, A NEW PICTURE</p>
         <h1>New assessment</h1>
-        <p>Set up the learner and passage, then record the reading aloud.</p>
+        <p>Set up the learner and passage, then record or upload the reading aloud.</p>
       </header>
 
       <form className="assessment-form" onSubmit={handleSubmit}>

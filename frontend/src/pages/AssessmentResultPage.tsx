@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Check, ClipboardList, LoaderCircle, Save } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
+import { getAssessmentAudioUrl } from "@/api/assessment";
 import { LoadingState } from "@/components/LoadingState";
 import { getPassage } from "@/data/passages";
 import { useAssessment, useSaveAssessmentReview } from "@/hooks/useAssessments";
@@ -24,9 +25,11 @@ export function AssessmentResultPage() {
   const [transcript, setTranscript] = useState("");
   const [notes, setNotes] = useState("");
   const [savedMessage, setSavedMessage] = useState("");
+  const [audioUnavailable, setAudioUnavailable] = useState(false);
 
   useEffect(() => {
     if (!assessment) return;
+    setAudioUnavailable(false);
     setTranscript(assessment.review?.transcript ?? assessment.result.transcript);
     setNotes(assessment.review?.notes ?? "");
     setSavedMessage(assessment.review ? `Last saved ${formatDate(assessment.review.updated_at)}` : "");
@@ -78,7 +81,11 @@ export function AssessmentResultPage() {
         updated_at: new Date().toISOString(),
       },
     }, {
-      onSuccess: () => setSavedMessage("Corrections saved on this device."),
+      onSuccess: ({ synced }) => setSavedMessage(
+        synced
+          ? "Corrections saved and analysis updated."
+          : "Corrections saved on this device; server sync is unavailable.",
+      ),
     });
   }
 
@@ -103,6 +110,25 @@ export function AssessmentResultPage() {
         <StatValue label="Reading level" value={result.reading_level || "Not provided"} />
       </section>
 
+      <section className="audio-replay" aria-label="Recording playback">
+        <div>
+          <p className="eyebrow">ORIGINAL RECORDING</p>
+          <h2>Replay the reading</h2>
+        </div>
+        {audioUnavailable ? (
+          <p className="audio-replay-unavailable">The recording is unavailable on the assessment server.</p>
+        ) : (
+          <audio
+            controls
+            preload="metadata"
+            src={getAssessmentAudioUrl(assessment.id)}
+            onError={() => setAudioUnavailable(true)}
+          >
+            Your browser does not support audio playback.
+          </audio>
+        )}
+      </section>
+
       <section className="text-comparison" aria-label="Original passage and transcript">
         <article className="reading-text-column">
           <div className="content-section-heading">
@@ -118,8 +144,8 @@ export function AssessmentResultPage() {
         <article className="reading-text-column transcript-column">
           <div className="content-section-heading">
             <div>
-              <p className="eyebrow">RETURNED BY THE ASSESSMENT SERVICE</p>
-              <h2>Transcript</h2>
+              <p className="eyebrow">{assessment.review ? "TEACHER-CORRECTED ANALYSIS" : "RETURNED BY THE ASSESSMENT SERVICE"}</p>
+              <h2>{assessment.review ? "Reviewed transcript" : "Transcript"}</h2>
             </div>
           </div>
           <p className="reading-text" lang="fil">{result.transcript || "No transcript was returned for this reading."}</p>
@@ -131,7 +157,7 @@ export function AssessmentResultPage() {
           <div>
             <p className="eyebrow">WORD-BY-WORD REVIEW</p>
             <h2 id="miscue-title">Miscue summary</h2>
-            <p>{summaryText}</p>
+            <p>{assessment.review ? "Recalculated from the reviewed transcript. " : ""}{summaryText}</p>
           </div>
           <span className="miscue-total"><strong>{result.miscues.length}</strong><span>total<br />miscues</span></span>
         </div>
@@ -178,6 +204,7 @@ export function AssessmentResultPage() {
               placeholder="Review or correct the transcript..."
               rows={5}
               maxLength={12000}
+              disabled={saveReview.isPending}
             />
           </label>
           <label className="field-label">
@@ -189,18 +216,19 @@ export function AssessmentResultPage() {
               placeholder="Add a short observation or a next step for this reader..."
               rows={4}
               maxLength={2000}
+              disabled={saveReview.isPending}
             />
           </label>
         </div>
 
         <div className="review-footer">
           <div className="review-feedback" aria-live="polite">
-            {saveReview.isPending ? <><LoaderCircle size={15} className="spin" /> Saving corrections...</> : savedMessage && <><Check size={15} /> {savedMessage}</>}
+            {saveReview.isPending ? <><LoaderCircle size={15} className="spin" /> Recalculating and saving...</> : savedMessage && <><Check size={15} /> {savedMessage}</>}
             {saveReview.isError && <span className="field-error">{saveReview.error.message}</span>}
           </div>
           <button type="button" className="button button-primary" onClick={handleSave} disabled={!isDirty || saveReview.isPending}>
             {saveReview.isPending ? <LoaderCircle size={16} className="spin" /> : <Save size={16} aria-hidden="true" />}
-            Save corrections
+            Save and recalculate
           </button>
         </div>
       </section>

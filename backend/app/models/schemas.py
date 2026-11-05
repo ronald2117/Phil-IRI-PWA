@@ -18,7 +18,7 @@ from app.models.assessment import AssessmentReview, AssessmentResult, Miscue
 class ReviewUpdateRequest(BaseModel):
     """Body for PATCH /assessments/{id}/review."""
 
-    transcript: str = Field(..., description="Teacher-corrected transcript.")
+    transcript: str = Field(..., max_length=12000, description="Teacher-corrected transcript.")
     notes: str = Field(default="")
     updated_at: Optional[datetime] = Field(
         default=None,
@@ -99,3 +99,4 @@ class AssessmentsListResponse(BaseModel):
 class ReviewUpdateResponse(BaseModel):
     id: str
     review: AssessmentReview
+    result: AssessmentResult

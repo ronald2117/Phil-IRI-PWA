@@ -110,9 +110,13 @@ def list_assessments() -> list[AssessmentRecord]:
     return sorted(records, key=lambda r: r.created_at, reverse=True)
 
 
-def update_review(assessment_id: str, review: AssessmentReview) -> Optional[AssessmentRecord]:
+def update_review(
+    assessment_id: str,
+    review: AssessmentReview,
+    result: AssessmentResult,
+) -> Optional[AssessmentRecord]:
     """
-    Attach or replace the teacher review on an existing record.
+    Attach or replace the teacher review and its recalculated result.
 
     Returns the updated record, or ``None`` if the ID was not found.
     """
@@ -120,7 +124,7 @@ def update_review(assessment_id: str, review: AssessmentReview) -> Optional[Asse
         record = _store.get(assessment_id)
         if record is None:
             return None
-        updated = record.model_copy(update={"review": review})
+        updated = record.model_copy(update={"review": review, "result": result})
         _store[assessment_id] = updated
         _save()
     logger.debug("Updated review for assessment '%s'.", assessment_id)

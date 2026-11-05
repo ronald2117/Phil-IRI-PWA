@@ -6,7 +6,7 @@ import logging
 from datetime import datetime
 
 from fastapi import APIRouter, Form, HTTPException, UploadFile, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 
 from app.models.schemas import (
     AssessmentDetailResponse,
@@ -18,6 +18,7 @@ from app.models.schemas import (
 )
 from app.models.assessment import AssessmentReview
 from app.services import assessment as assessment_service
+from app.services import miscue as miscue_service
 from app.services import storage
 
 logger = logging.getLogger(__name__)
@@ -129,6 +130,36 @@ async def list_assessments() -> AssessmentsListResponse:
 # GET /assessments/{id}
 # ---------------------------------------------------------------------------
 
+@router.get(
+    "/assessments/{assessment_id}/audio",
+    response_class=FileResponse,
+    summary="Replay an assessment recording",
+)
+async def get_assessment_audio(assessment_id: str) -> FileResponse:
+    record = storage.get_assessment(assessment_id)
+    if record is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Assessment '{assessment_id}' not found.",
+        )
+    audio_path = assessment_service.get_audio_path(assessment_id)
+    if audio_path is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="The recording for this assessment is not available.",
+        )
+    media_type = {
+        ".wav": "audio/wav",
+        ".webm": "audio/webm",
+        ".m4a": "audio/mp4",
+    }[audio_path.suffix]
+    return FileResponse(
+        audio_path,
+        media_type=media_type,
+        filename=audio_path.name,
+        content_disposition_type="inline",
+    )
+
 
 @router.get(
     "/assessments/{assessment_id}",
@@ -173,10 +204,17 @@ async def update_review(
         notes=body.notes,
         updated_at=body.updated_at or datetime.utcnow(),
     )
-    updated = storage.update_review(assessment_id, review)
+    record = storage.get_assessment(assessment_id)
+    if record is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Assessment '{assessment_id}' not found.",
+        )
+    result = miscue_service.analyze(record.result.expected_text, review.transcript)
+    updated = storage.update_review(assessment_id, review, result)
     if updated is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Assessment '{assessment_id}' not found.",
         )
-    return ReviewUpdateResponse(id=updated.id, review=review)
+    return ReviewUpdateResponse(id=updated.id, review=review, result=updated.result)

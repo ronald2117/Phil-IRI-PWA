@@ -1,4 +1,4 @@
-import { apiRequest, uploadForm } from "@/api/client";
+import { API_BASE_URL, apiRequest, uploadForm } from "@/api/client";
 import { countWords } from "@/lib/format";
 import { getPassage } from "@/data/passages";
 import type {
@@ -68,6 +68,16 @@ function normalizeMiscue(value: unknown): Miscue | undefined {
   };
 }
 
+function normalizeReview(value: unknown): AssessmentReview | undefined {
+  const record = asRecord(value);
+  if (!record || typeof record.transcript !== "string") return undefined;
+  return {
+    transcript: record.transcript,
+    notes: asString(record.notes),
+    updated_at: asString(record.updated_at),
+  };
+}
+
 function normalizeSummary(payload: unknown, fallbackId?: string): AssessmentSummary {
   const { root, assessment, result } = getSource(payload);
   const generatedId = fallbackId || createAssessmentId();
@@ -110,7 +120,8 @@ function normalizeSummary(payload: unknown, fallbackId?: string): AssessmentSumm
     reading_level: asString(result.reading_level ?? result.level, "Not provided"),
   };
 
-  return { ...assessmentData, result: resultData };
+  const review = normalizeReview(root.review ?? assessment.review);
+  return { ...assessmentData, result: resultData, ...(review ? { review } : {}) };
 }
 
 export async function submitAssessment(
@@ -118,7 +129,11 @@ export async function submitAssessment(
   onProgress?: (progress: number) => void,
 ): Promise<AssessmentRecord> {
   const formData = new FormData();
-  const extension = input.audio_file.type.includes("mp4") ? "m4a" : "webm";
+  const extension = input.audio_file.type.includes("wav")
+    ? "wav"
+    : input.audio_file.type.includes("mp4")
+      ? "m4a"
+      : "webm";
   const fileName = input.audio_file instanceof File ? input.audio_file.name : `reading-recording.${extension}`;
   formData.append("audio_file", input.audio_file, fileName);
   formData.append("student_name", input.student_name);
@@ -161,9 +176,13 @@ export async function getAssessment(id: string): Promise<AssessmentRecord> {
 }
 
 export async function saveAssessmentReviewRemote(id: string, review: AssessmentReview) {
-  return apiRequest<unknown>(`/assessments/${encodeURIComponent(id)}/review`, {
+  return apiRequest<{ review: AssessmentReview; result: AssessmentResult }>(`/assessments/${encodeURIComponent(id)}/review`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(review),
   });
+}
+
+export function getAssessmentAudioUrl(id: string) {
+  return `${API_BASE_URL}/assessments/${encodeURIComponent(id)}/audio`;
 }

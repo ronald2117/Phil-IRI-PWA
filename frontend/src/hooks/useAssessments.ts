@@ -6,6 +6,7 @@ import {
   submitAssessment,
 } from "@/api/assessment";
 import { readAssessment, readAssessments, saveAssessment } from "@/lib/assessment-store";
+import { analyzeMiscues } from "@/lib/miscue";
 import type {
   AssessmentInput,
   AssessmentRecord,
@@ -108,12 +109,22 @@ export function useSaveAssessmentReview() {
       const existing = readAssessment(id) ?? queryClient.getQueryData<AssessmentRecord>(assessmentQueryKey(id));
       if (!existing) throw new Error("This assessment could not be found on this device.");
 
-      const updated = { ...existing, review };
+      const updated = {
+        ...existing,
+        review,
+        result: analyzeMiscues(existing.result.expected_text, review.transcript),
+      };
       saveAssessment(updated);
-      void saveAssessmentReviewRemote(id, review).catch(() => undefined);
-      return updated;
+      try {
+        const remote = await saveAssessmentReviewRemote(id, review);
+        const synced = { ...updated, review: remote.review, result: remote.result };
+        saveAssessment(synced);
+        return { record: synced, synced: true };
+      } catch {
+        return { record: updated, synced: false };
+      }
     },
-    onSuccess: (record) => {
+    onSuccess: ({ record }) => {
       queryClient.setQueryData(assessmentQueryKey(record.id), record);
       void queryClient.invalidateQueries({ queryKey: ASSESSMENTS_QUERY_KEY });
     },

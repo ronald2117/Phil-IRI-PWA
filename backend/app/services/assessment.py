@@ -34,6 +34,8 @@ _ACCEPTED_AUDIO_BASES = (
     "audio/wav",
     "audio/x-wav",
     "audio/wave",
+    "audio/vnd.wave",
+    "audio/x-pn-wav",
     "audio/webm",
     "audio/mp4",
     "audio/m4a",
@@ -49,6 +51,16 @@ def _is_accepted_audio(content_type: str) -> bool:
     return base in {t.lower() for t in _ACCEPTED_AUDIO_BASES}
 
 _MAX_AUDIO_BYTES = 50 * 1024 * 1024  # 50 MB
+
+
+def get_audio_path(assessment_id: str) -> Path | None:
+    """Return the saved recording path for an assessment, if it exists."""
+    uploads_dir = _UPLOADS_DIR.resolve()
+    for extension in (".wav", ".webm", ".m4a"):
+        path = (_UPLOADS_DIR / f"{assessment_id}{extension}").resolve()
+        if path.parent == uploads_dir and path.is_file():
+            return path
+    return None
 
 
 async def run_assessment(
