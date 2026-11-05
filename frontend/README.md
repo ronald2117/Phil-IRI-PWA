@@ -9,7 +9,7 @@ npm install
 npm run dev
 ```
 
-The API defaults to `http://localhost:8000`. Copy `.env.example` to `.env.local` and set `VITE_API_BASE_URL` when the FastAPI service runs elsewhere.
+The API defaults to port `8000` on the same host that served the website, so other devices on the network can reach the API without targeting their own `localhost`. Copy `.env.example` to `.env.local` and set `VITE_API_BASE_URL` when the FastAPI service runs on a different host or port. Both the frontend and backend must be reachable over the network; allow inbound connections to their ports in the server's firewall.
 
 ## Assessment API
 

@@ -55,10 +55,10 @@ PyAV is constrained to versions below 19 because Faster-Whisper passes an
 ```bash
 python run.py
 # or
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-The API will be available at **http://localhost:8000**
+The API will be available at **http://localhost:8000** and, for other devices on the same network, at **http://<server-ip>:8000**. Allow inbound connections to port 8000 in the server's firewall.
 
 - Interactive docs: http://localhost:8000/docs  
 - ReDoc:           http://localhost:8000/redoc
