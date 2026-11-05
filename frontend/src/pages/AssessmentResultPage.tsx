@@ -37,7 +37,20 @@ function AnnotatedPassage({ text, alignment }: { text: string; alignment: Passag
             {alignment.insertions.get(currentWordIndex)?.map(({ word, status }, insertionIndex) =>
               renderInsertion(word, status, `${currentWordIndex}-${insertionIndex}`),
             )}
-            <span className={`passage-word passage-word--${status}`} aria-label={`${part}, ${statusLabel}`} title={statusLabel}>
+            <span
+              className={`passage-word passage-word--${status}`}
+              aria-label={status === "substitution"
+                ? `${part}, read as ${alignment.substitutions.get(currentWordIndex) ?? ""}`
+                : `${part}, ${statusLabel}`}
+              title={status === "substitution"
+                ? `Read as: ${alignment.substitutions.get(currentWordIndex) ?? ""}`
+                : statusLabel}
+            >
+              {status === "substitution" && (
+                <span className="passage-substitution-actual" aria-hidden="true">
+                  {alignment.substitutions.get(currentWordIndex)}
+                </span>
+              )}
               {part}
             </span>
           </Fragment>

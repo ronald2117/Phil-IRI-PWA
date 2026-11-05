@@ -4,6 +4,7 @@ export type PassageWordStatus = "correct" | "substitution" | "omission" | "repet
 
 export interface PassageAlignment {
   wordStatuses: PassageWordStatus[];
+  substitutions: Map<number, string>;
   insertions: Map<number, Array<{ word: string; status: "insertion" | "repetition" }>>;
 }
 
@@ -53,6 +54,7 @@ export function alignPassage(expectedText: string, transcript: string): PassageA
   const expected = tokenize(expectedText);
   const actual = tokenize(transcript);
   const wordStatuses: PassageWordStatus[] = Array(expected.length).fill("correct");
+  const substitutions = new Map<number, string>();
   const insertions = new Map<number, Array<{ word: string; status: "insertion" | "repetition" }>>();
   const aligned: Array<{ expectedIndex?: number; actual: string; insertionPosition?: number; insertionIndex?: number }> = [];
   const matches = findMatches(expected, actual);
@@ -67,6 +69,7 @@ export function alignPassage(expectedText: string, transcript: string): PassageA
     for (let index = 0; index < paired; index += 1) {
       const expectedIndex = expectedStart + index;
       wordStatuses[expectedIndex] = "substitution";
+      substitutions.set(expectedIndex, actualGap[index]);
       aligned.push({ expectedIndex, actual: actualGap[index] });
     }
     for (let index = paired; index < expectedGap.length; index += 1) {
@@ -102,7 +105,7 @@ export function alignPassage(expectedText: string, transcript: string): PassageA
     if (pair.actual) previousActual = pair.actual;
   }
 
-  return { wordStatuses, insertions };
+  return { wordStatuses, substitutions, insertions };
 }
 
 function readingLevel(accuracy: number) {
